@@ -34,9 +34,9 @@ def home():
 @app.route('/api/testDB')
 def test_DB():
     try: 
-        connection = get_db_connection()
+        connection = getConnection()
         with connection.cursor() as cursor: 
-            cursor.executre("SELECT DATABASE()")
+            cursor.execute("SELECT DATABASE()")
             result = cursor.fetchone()
         connection.close() 
         return {'status': 'success', 'database': result }, 200
@@ -46,7 +46,7 @@ def test_DB():
 @app.route('/api/movies')
 def get_movies():
     try: 
-        connection: get_db_connection()
+        connection = getConnection()
         with connection.cursor() as cursor:
             cursor.execute("""
                  SELECT film_id, title, description, release_year, 
