@@ -1,3 +1,4 @@
+
 from flask import Flask, jsonify
 from flask_cors import CORS 
 from dotenv import load_dotenv
@@ -34,9 +35,9 @@ def home():
 @app.route('/api/testDB')
 def test_DB():
     try: 
-        connection = get_db_connection()
+        connection = getConnection()
         with connection.cursor() as cursor: 
-            cursor.executre("SELECT DATABASE()")
+            cursor.execute("SELECT DATABASE()")
             result = cursor.fetchone()
         connection.close() 
         return {'status': 'success', 'database': result }, 200
@@ -46,20 +47,51 @@ def test_DB():
 @app.route('/api/movies')
 def get_movies():
     try: 
-        connection: get_db_connection()
+        connection = getConnection()
         with connection.cursor() as cursor:
             cursor.execute("""
-                 SELECT film_id, title, description, release_year, 
-                       rental_rate, length, rating
-                FROM film
-                LIMIT 20
+                 select f.film_id, f.title, c.name
+                 from sakila.film f, sakila.film_category fc, sakila.category c
+                where f.film_id = fc.film_id and fc.category_id = c.category_id;
             """)
             movies = cursor.fetchall()
         connection.close()
-        return jsonify(fake_movies), 200
+        return jsonify(movies), 200
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)},500
+    
+@app.route('/api/top5movies')
+def get_top5():
+    try:
+        conn = getConnection()
+        with conn.cursor() as cursor:
+            cursor.execute("""SELECT f.film_id, f.title, c.name, COUNT(r.rental_id) FROM film f
+                            JOIN film_category fc ON fc.film_id = f.film_id 
+                            JOIN category c ON fc.category_id = c.category_id 
+                            JOIN inventory i ON f.film_id = i.film_id 
+                            JOIN rental r ON i.inventory_id = r.inventory_id 
+                            GROUP BY f.film_id, f.title, c.name 
+                            ORDER BY COUNT(r.rental_id) DESC 
+                            LIMIT 5""")
+            movies = cursor.fetchall()
+        cursor.close()
+        return jsonify(movies), 200
     except Exception as e:
         return {'status': 'error', 'message': str(e)},500
 
-if __name__ == '__main__':
+'''
+Top 5 movies 
+SELECT f.film_id, f.title, c.name, COUNT(r.rental_id) FROM film f
+JOIN film_category fc ON fc.film_id = f.film_id 
+JOIN category c ON fc.category_id = c.category_id 
+JOIN inventory i ON f.film_id = i.film_id 
+JOIN rental r ON i.inventory_id = r.inventory_id 
+GROUP BY f.film_id, f.title, c.name 
+ORDER BY COUNT(r.rental_id) DESC 
+LIMIT 5
+'''
+
+
+if __name__ == 'main':
     print("Running Flask server...")
     app.run(debug=True, port=5000)
