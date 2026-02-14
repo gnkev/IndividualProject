@@ -108,6 +108,62 @@ def get_movies():
     
 #todo: Be able to click movie for details
 
+
+@app.route('/api/actors')
+def get_actors(): 
+    try:
+        actor = request.args.get("actor")
+
+        if not actor or not actor.strip(): 
+            return jsonify({"Failed": "No name given"}), 400
+        actorname = actor.split(" ") 
+        if len(actorname) != 2:
+                    return jsonify({"Failed":"Bad Request (firstname + lastname)"}),400
+                   
+        firstname = actorname[0]
+        lastname = actorname[1]
+
+        connection = getConnection()
+        with connection.cursor() as cursor: 
+            cursor.execute(f"""
+                select a.actor_id, a.first_name, a.last_name
+	            from sakila.actor a
+	            where a.first_name = '{firstname}' AND a.last_name = '{lastname}'
+	            
+            """)
+            actorDetails = cursor.fetchone()
+
+            if not actorDetails: 
+                return jsonify({"Failed: {actor} not found"}), 404
+
+        
+            
+            cursor.execute(f""" 
+                    SELECT f.film_id, f.title, COUNT(r.rental_id) as rental_count 
+                    FROM sakila.film f, sakila.rental r, sakila.inventory i, sakila.film_actor fa, sakila.actor a
+                    WHERE f.film_id = i.film_id 
+                    AND i.inventory_id = r.inventory_id 
+                    AND f.film_id = fa.film_id 
+                    AND fa.actor_id = a.actor_id 
+                    AND a.first_name = '{firstname}' 
+                    AND a.last_name = '{lastname}'
+                    GROUP BY f.film_id, f.title 
+                    ORDER BY rental_count DESC
+                    LIMIT 5
+            
+            """)
+            actorTop5Films = cursor.fetchall()
+        connection.close()
+
+        result = { "actor": actorDetails,
+                    "top 5 films": actorTop5Films
+                }
+        return jsonify(result), 200 
+
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)},500
+
 @app.route('/api/top5movies')
 def get_top5():
     try:
@@ -133,18 +189,46 @@ def get_top5():
 @app.route('/api/users')
 def get_all_users():
     try:
+
+        page = request.args.get('page', 1, type=int)
+        usersPerPage = request.args.get('usersPerPage',10, type=int)
+
+        offset = (page - 1) * usersPerPage
+
         conn = getConnection()
         with conn.cursor() as cursor:
-            cursor.execute("""SELECT c.first_name, c.last_name FROM customer c""")
+            #cursor.execute("""SELECT c.first_name, c.last_name FROM customer c""") 
+            #customers = cursor.fetchall()
+            cursor.execute("""SELECT COUNT(*) as total FROM customer""")
+            totalCustomers = cursor.fetchone()['total']
+
+            cursor.execute(f""" 
+                    SELECT c.customer_id, c.first_name, c.last_name, c.email
+                    FROM customer c 
+                    LIMIT {usersPerPage} OFFSET {offset}         
+            """)
             customers = cursor.fetchall()
-        cursor.close()
-        return jsonify(customers), 200
+            
+        conn.close()
+        totalPages = (totalCustomers + usersPerPage - 1) // usersPerPage
+
+        return jsonify({
+            "customers": customers, 
+            "pagination": {
+                "current_page": page,
+                "users_per_page": usersPerPage,
+                "total_customers": totalCustomers,
+                "total_pages": totalPages,
+                "has_next": page < totalPages,
+                "has_prev": page > 1 
+            }
+        }), 200 
     except Exception as e:
         print(e)
         return {'status': 'error', 'message': str(e)},500
 
 
 
-if __name__ == 'main':
+if __name__ == '__main__':
     print("Running Flask server...")
     app.run(debug=True, port=5000)
