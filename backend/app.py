@@ -48,19 +48,19 @@ def test_DB():
 @app.route('/api/movies')
 def get_movies():
     try: 
-        tittle = request.args.get("tittle")
+        title = request.args.get("title")
         actor = request.args.get("actor")
         genre = request.args.get("genre")
-        param_count = sum([1 for param in [tittle, actor, genre] if param is not None])
+        param_count = sum([1 for param in [title, actor, genre] if param is not None])
         connection = getConnection()
         with connection.cursor() as cursor:
             if param_count == 1:
-                if tittle:
+                if title:
                     cursor.execute(f"""SELECT * FROM film f
-                                WHERE f.title = '{tittle}';""")
+                                WHERE f.title = '{title}';""")
                     movies = cursor.fetchall()
                     if not movies:
-                        return jsonify({"Failed":f"{tittle} not found"}), 404
+                        return jsonify({"Failed":f"{title} not found"}), 404
                     return jsonify(movies)
                 elif actor:
                     if actor == None:
