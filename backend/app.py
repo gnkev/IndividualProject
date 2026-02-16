@@ -227,6 +227,56 @@ def get_all_users():
         print(e)
         return {'status': 'error', 'message': str(e)},500
 
+@app.route('/api/rentals', methods=['POST'])
+def customerRental():
+    try:
+        data = request.get_json()
+        customer_id = data.get('customer_id')
+        film_id = data.get('film_id') 
+        staff_id = data.get('staff_id', 1)
+
+        if not customer_id or not film_id:
+            return jsonify({"Failed": "customer_id and film_id are required to perform rental"}),400
+
+        connection = getConnection()
+        with connection.cursor() as cursor: 
+            cursor.execute(f""" 
+                SELECT i.inventory_id 
+                FROM inventory i
+                WHERE i.film_id = {film_id}
+                AND i.inventory_id NOT IN (
+                SELECT inventory_id 
+                FROM rental 
+                WHERE return_date IS NULL
+                )
+                LIMIT 1
+            """) 
+            available_inv = cursor.fetchone()
+
+            if not available_inv:
+                return jsonify({"Failed": "Film is not available to be rented"}),400 
+            
+            inventory_id = available_inv['inventory_id']
+
+            cursor.execute(f"""
+                    INSERT INTO rental (rental_date, inventory_id, customer_id, staff_id)
+                    VALUES (NOW(), {inventory_id}, {customer_id}, {staff_id})
+            
+            """)
+            connection.commit()
+            rental_id = cursor.lastrowid
+        connection.close()
+
+
+        return jsonify({
+            "success": True,
+            "rental_id": rental_id,
+            "message": f"Film successfully rented to customer {customer_id}"
+        }), 201
+
+    except Exception as e:
+        print(e)
+        return {'status': 'error','message': str(e)}, 500
 
 
 if __name__ == '__main__':
