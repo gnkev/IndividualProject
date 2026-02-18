@@ -109,6 +109,31 @@ def get_movies():
 #todo: Be able to click movie for details
 
 
+
+@app.route('/api/top5actors')
+def get_top5_actors():
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT a.actor_id, a.first_name, a.last_name, COUNT(r.rental_id) as rental_count
+                FROM actor a
+                JOIN film_actor fa ON a.actor_id = fa.actor_id
+                JOIN film f ON fa.film_id = f.film_id
+                JOIN inventory i ON f.film_id = i.film_id
+                JOIN rental r ON i.inventory_id = r.inventory_id
+                GROUP BY a.actor_id, a.first_name, a.last_name
+                ORDER BY rental_count DESC
+                LIMIT 5
+            """)
+            top_actors = cursor.fetchall()
+        connection.close()
+        return jsonify(top_actors), 200
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)}, 500
+
+
 @app.route('/api/actors')
 def get_actors(): 
     try:

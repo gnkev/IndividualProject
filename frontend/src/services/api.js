@@ -16,5 +16,15 @@ export const getCustomers = async( page = 1, usersPerPage = 10) => {
     return response.data;
 }
 
+export const getTop5Actors = async () => {
+    const response = await api.get('/top5actors');
+    return response.data;
+};
+
+export const getActorDetails = async (actorName) => {
+    const response = await api.get('/actors', { params: { actor: actorName } });
+    return response.data;
+};
+
 
 export default api;
