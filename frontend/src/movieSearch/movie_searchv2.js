@@ -35,9 +35,9 @@ function Search2() {
     return (
         <div style={{textAlign:"center"}}>
             <select value={searchType} onChange={(e) => setType(e.target.value)}>
-                <option value="title"Title></option>
-                <option value="actor"Actor></option>
-                <option value="genre"Genre></option>
+                <option value="title">Title</option>
+                <option value="actor">Actor</option>
+                <option value="genre">Genre</option>
             </select>
 
             <input 
