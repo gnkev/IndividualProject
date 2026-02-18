@@ -48,9 +48,9 @@ def test_DB():
 @app.route('/api/movies')
 def get_movies():
     try: 
-        title = request.args.get("title")
-        actor = request.args.get("actor")
-        genre = request.args.get("genre")
+        title = request.args.get("title") or None
+        actor = request.args.get("actor") or None
+        genre = request.args.get("genre") or None
         param_count = sum([1 for param in [title, actor, genre] if param is not None])
         connection = getConnection()
         with connection.cursor() as cursor:
