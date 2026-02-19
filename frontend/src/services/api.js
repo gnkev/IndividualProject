@@ -21,10 +21,19 @@ export const getTop5Actors = async () => {
     return response.data;
 };
 
+export const getTop5Movies = async () => {
+    const response = await api.get('/top5movies');
+    return response.data;
+}
+
 export const getActorDetails = async (actorName) => {
     const response = await api.get('/actors', { params: { actor: actorName } });
     return response.data;
 };
 
+export const getMovieDetails = async (in_title) => {
+    const response = await api.get('/movies', { params: { title: in_title } });
+    return response.data[0];
+};
 
 export default api;

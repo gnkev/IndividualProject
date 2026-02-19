@@ -53,11 +53,23 @@ def get_movies():
         genre = request.args.get("genre") or None
         param_count = sum([1 for param in [title, actor, genre] if param is not None])
         connection = getConnection()
+        sql_query = """SELECT f.*, 
+                    GROUP_CONCAT(DISTINCT c.name) AS genre, 
+                    GROUP_CONCAT(DISTINCT CONCAT(a.first_name, ' ', a.last_name)) AS actors, 
+                    GROUP_CONCAT(DISTINCT lan.name) AS lang
+                FROM film f
+                JOIN film_category fc ON fc.film_id = f.film_id 
+                JOIN category c ON c.category_id = fc.category_id 
+                JOIN film_actor fa ON fa.film_id = f.film_id 
+                JOIN actor a ON a.actor_id = fa.actor_id 
+                JOIN `language` lan ON lan.language_id = f.language_id 
+                """ #dont forget to put GROUP BY f.film_id at the end!
         with connection.cursor() as cursor:
             if param_count == 1:
                 if title:
-                    cursor.execute(f"""SELECT * FROM film f
-                                WHERE f.title = '{title}';""")
+                    cursor.execute(f"""{sql_query}
+                                WHERE f.title = '{title}'
+                                GROUP BY f.film_id;""") #<- like this!
                     movies = cursor.fetchall()
                     if not movies:
                         return jsonify({"Failed":f"{title} not found"}), 404
@@ -71,20 +83,18 @@ def get_movies():
                     firstname = actorname[0]
                     lastname = actorname[1]
                     print(firstname, lastname)
-                    cursor.execute(f"""SELECT f.*, a.first_name , a.last_name  FROM film f
-                                       JOIN film_actor fa ON fa.film_id = f.film_id 
-                                       JOIN actor a ON a.actor_id = fa.actor_id 
-                                       WHERE a.first_name = '{firstname}' AND a.last_name = '{lastname}';""")
+                    cursor.execute(f"""{sql_query} 
+                                       WHERE a.first_name = '{firstname}' AND a.last_name = '{lastname}'
+                                       GROUP BY f.film_id""")
                     movies = cursor.fetchall()
                     if not movies:
                         return jsonify({"Failed":f"{actor} not found"}), 404
                     return jsonify(movies),200
                 
                 elif genre:
-                    cursor.execute(f"""SELECT f.*, c.name FROM film f
-                                      JOIN film_category fc ON fc.film_id = f.film_id 
-                                      JOIN category c ON c.category_id = fc.category_id 
-                                      WHERE c.name = '{genre}'""")
+                    cursor.execute(f"""{sql_query} 
+                                      WHERE c.name = '{genre}'
+                                      GROUP BY f.film_id""")
                     movies = cursor.fetchall()
                     if not movies:
                         return jsonify({"Failed":f"{genre} not found"}), 404
@@ -92,11 +102,7 @@ def get_movies():
 
             
             elif param_count == 0:
-                cursor.execute("""
-                    select f.film_id, f.title, c.name
-                    from sakila.film f, sakila.film_category fc, sakila.category c
-                    where f.film_id = fc.film_id and fc.category_id = c.category_id;
-                """)
+                cursor.execute(f"""{sql_query} GROUP BY f.film_id""")
                 movies = cursor.fetchall()
                 return jsonify(movies), 200
             else:
@@ -194,12 +200,15 @@ def get_top5():
     try:
         conn = getConnection()
         with conn.cursor() as cursor:
-            cursor.execute("""SELECT f.film_id, f.title, c.name, COUNT(r.rental_id) FROM film f
+            cursor.execute("""SELECT f.*, c.name as genre, COUNT(r.rental_id) FROM film f
                             JOIN film_category fc ON fc.film_id = f.film_id 
                             JOIN category c ON fc.category_id = c.category_id 
                             JOIN inventory i ON f.film_id = i.film_id 
                             JOIN rental r ON i.inventory_id = r.inventory_id 
-                            GROUP BY f.film_id, f.title, c.name 
+                            JOIN film_actor fa ON fa.film_id = f.film_id 
+                            JOIN actor a ON a.actor_id = fa.actor_id 
+                            JOIN `language` lan ON lan.language_id = f.language_id
+                            GROUP BY f.film_id, f.title, c.name
                             ORDER BY COUNT(r.rental_id) DESC 
                             LIMIT 5""")
             movies = cursor.fetchall()
