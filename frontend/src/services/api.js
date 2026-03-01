@@ -36,4 +36,12 @@ export const getMovieDetails = async (in_title) => {
     return response.data[0];
 };
 
+export const createRental = async (customerID, filmID) => { 
+    const response = await api.post('/rentals', { 
+        customer_id: customerID, 
+        film_id: filmID
+    });
+    return response.data;
+};
+
 export default api;
