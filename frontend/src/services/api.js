@@ -44,4 +44,24 @@ export const createRental = async (customerID, filmID) => {
     return response.data;
 };
 
+export const getCustomerDetails = async (customerId) => { 
+    const response = await api.get(`/customers/${customerId}`);
+    return response.data;
+};
+
+export const getCustomerRentals = async (customerId) => { 
+    const response = await api.get(`/customers/${customerId}/rentals`);
+    return response.data;
+};
+
+export const returnRental = async (rentalId) => {
+    const response = await api.put(`/rentals/${rentalId}/return`);
+    return response.data;
+};
+
+export const deleteCustomer = async (customerId) => {
+    const response = await api.delete(`/customers/${customerId}`);
+    return response.data;
+};
+
 export default api;

@@ -312,6 +312,143 @@ def customerRental():
         print(e)
         return {'status': 'error','message': str(e)}, 500
 
+@app.route('/api/customers/<int:customer_id>')
+def get_details(customer_id): 
+    try: 
+        connection = getConnection()
+        with connection.cursor() as cursor: 
+            cursor.execute(f""" 
+                SELECT c.customer_id, c.first_name, c.last_name, c.email,
+                       c.active, c.create_date,
+                       a.address, a.district, a.postal_code, a.phone,
+                       ci.city, co.country
+                FROM customer c
+                JOIN address a ON c.address_id = a.address_id
+                JOIN city ci ON a.city_id = ci.city_id
+                JOIN country co ON ci.country_id = co.country_id
+                WHERE c.customer_id = {customer_id}
+            """)
+            
+
+        customer = cursor.fetchone()
+
+        if not customer: 
+            return jsonify({"Failed": "Customer not found" }),404
+        
+        connection.close()
+        return jsonify(customer),200
+    
+    except Exception as e:
+        print(e)
+        return {'status': 'error','message': str(e)}, 500
+
+
+@app.route('/api/customers/<int:customer_id>/rentals')
+def get_rentals(customer_id):
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor: 
+            cursor.execute(f"""
+                SELECT r.rental_id, r.rental_date, r.return_date,
+                       f.film_id, f.title, f.rating, f.rental_rate,
+                       DATEDIFF(COALESCE(r.return_date, NOW()), r.rental_date) as days_rented,
+                       CASE 
+                           WHEN r.return_date IS NULL THEN 'Active'
+                           ELSE 'Returned'
+                       END as status
+                FROM rental r
+                JOIN inventory i ON r.inventory_id = i.inventory_id
+                JOIN film f ON i.film_id = f.film_id
+                WHERE r.customer_id = {customer_id}
+                ORDER BY r.rental_date DESC
+            """)
+            rentals = cursor.fetchall()
+        
+        connection.close()
+        return jsonify(rentals), 200 
+
+    except Exception as e:
+        print(e)
+        return {'status': 'error','message': str(e)}, 500
+
+@app.route('/api/rentals/<int:rental_id>/return', methods=['PUT'])
+def return_rental(rental_id):
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                SELECT rental_id, return_date 
+                FROM rental 
+                WHERE rental_id = {rental_id}
+            """)
+            rental = cursor.fetchone()
+            
+            if not rental:
+                return jsonify({"Failed": "Rental not found"}), 404
+            
+            if rental['return_date'] is not None:
+                return jsonify({"Failed": "Film already returned"}), 400
+            
+            cursor.execute(f"""
+                UPDATE rental 
+                SET return_date = NOW() 
+                WHERE rental_id = {rental_id}
+            """)
+            connection.commit()
+        
+        connection.close()
+        return jsonify({
+            "success": True,
+            "message": "Film successfully returned"
+        }), 200
+        
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)}, 500
+
+
+@app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
+def delete_customer(customer_id):
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor:
+
+            cursor.execute(f"""
+                SELECT customer_id 
+                FROM customer 
+                WHERE customer_id = {customer_id}
+            """)
+            customer = cursor.fetchone()
+            
+            if not customer:
+                return jsonify({"Failed": "Customer not found"}), 404
+
+            cursor.execute(f"""
+                DELETE FROM payment 
+                WHERE customer_id = {customer_id}
+            """)
+
+            cursor.execute(f"""
+                DELETE FROM rental 
+                WHERE customer_id = {customer_id}
+            """)
+
+            cursor.execute(f"""
+                DELETE FROM customer 
+                WHERE customer_id = {customer_id}
+            """)
+            connection.commit()
+        
+        connection.close()
+        return jsonify({
+            "success": True,
+            "message": f"Customer {customer_id} successfully deleted"
+        }), 200
+        
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)}, 500
+
 
 if __name__ == '__main__':
     print("Running Flask server...")
