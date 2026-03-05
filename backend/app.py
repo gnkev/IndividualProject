@@ -112,10 +112,6 @@ def get_movies():
     except Exception as e:
         return {'status': 'error', 'message': str(e)},500
     
-#todo: Be able to click movie for details
-
-
-
 @app.route('/api/top5actors')
 def get_top5_actors():
     try:
@@ -219,11 +215,10 @@ def get_top5():
         print(e)
         return {'status': 'error', 'message': str(e)},500
 
-
+# This utlizes pagination for the frontend table
 @app.route('/api/users')
 def get_all_users():
     try:
-
         page = request.args.get('page', 1, type=int)
         usersPerPage = request.args.get('usersPerPage',10, type=int)
 
@@ -260,6 +255,51 @@ def get_all_users():
     except Exception as e:
         print(e)
         return {'status': 'error', 'message': str(e)},500
+
+@app.route('/api/searchcustomers')
+def search_customers():
+    try:
+        customer_id = request.args.get("customer_id") or None
+        firstaname = request.args.get("first_name") or None
+        lastname = request.args.get("last_name") or None
+        param_count = sum([1 for param in [customer_id, firstaname, lastname] if param is not None])
+        conn = getConnection()
+        sql_query = """SELECT c.* FROM customer c"""
+        with conn.cursor() as cursor:
+            if param_count == 1:
+                if customer_id:
+                    try:
+                        _ = int(customer_id)
+                    except ValueError:
+                        return jsonify({"Failed":"Not a number"}), 400
+                    cursor.execute(f"""{sql_query} WHERE c.customer_id = {customer_id}""")
+                    customers = cursor.fetchone()
+                    if not customers:
+                        return jsonify({"Failed":"Customer not found"}), 404
+                    return jsonify(customers), 200
+                elif firstaname:
+                    cursor.execute(f"""{sql_query} WHERE c.first_name = '{firstaname}'""")
+                    customers = cursor.fetchall()
+                    if not customers:
+                        return jsonify({"Failed":"No customers found"}), 404
+                    return jsonify(customers), 200
+                elif lastname:
+                    cursor.execute(f"""{sql_query} WHERE c.last_name = '{lastname}'""")
+                    customers = cursor.fetchall()
+                    if not customers:
+                        return jsonify({"Failed":"No customers found"}), 404
+                    return jsonify(customers), 200
+            elif param_count > 1:
+                return jsonify({"Failed":"Too many parameters"}), 400
+            else:
+                cursor.execute(sql_query)
+                customers = cursor.fetchall()
+                return jsonify(customers), 200
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)},500
+
+
 
 @app.route('/api/rentals', methods=['POST'])
 def customerRental():
@@ -311,6 +351,207 @@ def customerRental():
     except Exception as e:
         print(e)
         return {'status': 'error','message': str(e)}, 500
+
+@app.route('/api/customers/<int:customer_id>')
+def get_details(customer_id): 
+    try: 
+        connection = getConnection()
+        with connection.cursor() as cursor: 
+            cursor.execute(f""" 
+                SELECT c.customer_id, c.first_name, c.last_name, c.email,
+                       c.active, c.create_date,
+                       a.address, a.district, a.postal_code, a.phone,
+                       ci.city, co.country
+                FROM customer c
+                JOIN address a ON c.address_id = a.address_id
+                JOIN city ci ON a.city_id = ci.city_id
+                JOIN country co ON ci.country_id = co.country_id
+                WHERE c.customer_id = {customer_id}
+            """)
+            
+
+        customer = cursor.fetchone()
+
+        if not customer: 
+            return jsonify({"Failed": "Customer not found" }),404
+        
+        connection.close()
+        return jsonify(customer),200
+    
+    except Exception as e:
+        print(e)
+        return {'status': 'error','message': str(e)}, 500
+
+
+@app.route('/api/customers/<int:customer_id>/rentals')
+def get_rentals(customer_id):
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor: 
+            cursor.execute(f"""
+                SELECT r.rental_id, r.rental_date, r.return_date,
+                       f.film_id, f.title, f.rating, f.rental_rate,
+                       DATEDIFF(COALESCE(r.return_date, NOW()), r.rental_date) as days_rented,
+                       CASE 
+                           WHEN r.return_date IS NULL THEN 'Active'
+                           ELSE 'Returned'
+                       END as status
+                FROM rental r
+                JOIN inventory i ON r.inventory_id = i.inventory_id
+                JOIN film f ON i.film_id = f.film_id
+                WHERE r.customer_id = {customer_id}
+                ORDER BY r.rental_date DESC
+            """)
+            rentals = cursor.fetchall()
+        
+        connection.close()
+        return jsonify(rentals), 200 
+
+    except Exception as e:
+        print(e)
+        return {'status': 'error','message': str(e)}, 500
+
+@app.route('/api/rentals/<int:rental_id>/return', methods=['PUT'])
+def return_rental(rental_id):
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                SELECT rental_id, return_date 
+                FROM rental 
+                WHERE rental_id = {rental_id}
+            """)
+            rental = cursor.fetchone()
+            
+            if not rental:
+                return jsonify({"Failed": "Rental not found"}), 404
+            
+            if rental['return_date'] is not None:
+                return jsonify({"Failed": "Film already returned"}), 400
+            
+            cursor.execute(f"""
+                UPDATE rental 
+                SET return_date = NOW() 
+                WHERE rental_id = {rental_id}
+            """)
+            connection.commit()
+        
+        connection.close()
+        return jsonify({
+            "success": True,
+            "message": "Film successfully returned"
+        }), 200
+        
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)}, 500
+
+
+@app.route('/api/customers', methods=['POST'])
+def create_customer():
+    try:
+        body = request.json
+        print(body)
+        store_id = body["store_id"]
+        first_name = body["first_name"]
+        last_name = body["last_name"]
+        email = body["email"]
+        address_id = body["address_id"]
+        active = body.get("active",1)
+
+        if not all([store_id, first_name, last_name, email, address_id]):
+            return jsonify({"Failed": "Missing required fields"}), 400
+       
+        conn = getConnection()
+        with conn.cursor() as cursor:
+            cursor.execute(f"""INSERT INTO customer (store_id, first_name, last_name, email, address_id, active, create_date, last_update)
+                                VALUES ({store_id}, '{first_name}', '{last_name}', '{email}', {address_id}, {active}, NOW(), NOW())
+                            """)
+            conn.commit()
+            conn.close()
+        return jsonify({"Success":f"Customer created{body}"}),201
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)}, 400
+
+
+@app.route('/api/customers/<int:customer_id>', methods=['POST'])
+def update_user(customer_id: int):
+    try:
+        body = request.json
+        if not body:
+            return jsonify({"Failed": "No body"}), 400
+
+        fields = ["store_id", "first_name", "last_name", "email", "address_id", "active"]
+        updates = {key: body[key] for key in fields if key in body}
+        if not updates:
+            return jsonify({"Failed": "No fields"}), 400
+
+        query = ", ".join([f"{key} = %s" for key in updates])
+        values = list(updates.values())
+
+        conn = getConnection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT customer_id FROM customer WHERE customer_id = %s",
+                (customer_id,)
+            )
+            if not cursor.fetchone():
+                return jsonify({"Failed": "Customer not found"}), 404
+
+            cursor.execute(
+                f"UPDATE customer SET {query}, last_update = NOW() WHERE customer_id = %s",
+                values + [customer_id]  
+            )
+            conn.commit()
+        conn.close()
+        return jsonify({"status": "success"}), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
+def delete_customer(customer_id):
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor:
+
+            cursor.execute(f"""
+                SELECT customer_id 
+                FROM customer 
+                WHERE customer_id = {customer_id}
+            """)
+            customer = cursor.fetchone()
+            
+            if not customer:
+                return jsonify({"Failed": "Customer not found"}), 404
+
+            cursor.execute(f"""
+                DELETE FROM payment 
+                WHERE customer_id = {customer_id}
+            """)
+
+            cursor.execute(f"""
+                DELETE FROM rental 
+                WHERE customer_id = {customer_id}
+            """)
+
+            cursor.execute(f"""
+                DELETE FROM customer 
+                WHERE customer_id = {customer_id}
+            """)
+            connection.commit()
+        
+        connection.close()
+        return jsonify({
+            "success": True,
+            "message": f"Customer {customer_id} successfully deleted"
+        }), 200
+        
+    except Exception as e:
+        print(e)
+        return {'status': 'error', 'message': str(e)}, 500
 
 
 if __name__ == '__main__':

@@ -36,4 +36,42 @@ export const getMovieDetails = async (in_title) => {
     return response.data[0];
 };
 
+export const createRental = async (customerID, filmID) => { 
+    const response = await api.post('/rentals', { 
+        customer_id: customerID, 
+        film_id: filmID
+    });
+    return response.data;
+};
+
+export const getCustomerDetails = async (customerId) => { 
+    const response = await api.get(`/customers/${customerId}`);
+    return response.data;
+};
+
+export const getCustomerRentals = async (customerId) => { 
+    const response = await api.get(`/customers/${customerId}/rentals`);
+    return response.data;
+};
+
+export const returnRental = async (rentalId) => {
+    const response = await api.put(`/rentals/${rentalId}/return`);
+    return response.data;
+};
+
+export const deleteCustomer = async (customerId) => {
+    const response = await api.delete(`/customers/${customerId}`);
+    return response.data;
+};
+
+export const createCustomer = async (data) => {
+    const response = await api.post('/customers', data);
+    return response.data;
+};
+
+export const updateCustomer = async (customerId, data) => {
+    const response = await api.post(`/customers/${customerId}`, data);
+    return response.data;
+};
+
 export default api;

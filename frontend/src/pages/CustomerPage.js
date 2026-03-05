@@ -1,5 +1,9 @@
 import React, { useState, useEffect} from 'react';
-import {getCustomers} from '../services/api.js'; 
+import axios from 'axios';
+import {getCustomers, deleteCustomer} from '../services/api.js'; 
+import CustomerDetailsPopup from '../components/CustomerDetailsPopup.js';
+import CustomerSearch from '../customerSearch/customersearch.js'; 
+import AddFormPopup from '../components/AddformPopup.js';
 
 function CustomerPage() {
     const [customers, setCustomer] = useState([]);
@@ -7,6 +11,10 @@ function CustomerPage() {
     const [error, setError] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [pagination, setPagination] = useState(null);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [deletingCustomer, setDeletingCustomer] = useState(null);
+    const [showSearch, setShowSearch] = useState(false); 
+    const [showAddForm, setShowAddForm] = useState(false);
 
     useEffect(() => {
         fetchCustomers(currentPage);
@@ -26,6 +34,25 @@ function CustomerPage() {
         }
     };
 
+    const handleDelete = async (customerId, e) => {
+        e.stopPropagation();  
+        
+        if (!window.confirm(`Are you sure you want to delete customer ${customerId}? This will erase all rental and payment history on file!`)) {
+            return;
+        }
+
+        try {
+            setDeletingCustomer(customerId);
+            await deleteCustomer(customerId);
+            fetchCustomers(currentPage);
+        } catch (error) {
+            console.error(error);
+            alert('Failed to delete customer');
+        } finally {
+            setDeletingCustomer(null);
+        }
+    };
+
     if (loading) return <h2>Loading Customer Data...</h2>
     if (error) return <h2>{error}</h2>; 
 
@@ -33,69 +60,116 @@ function CustomerPage() {
         <div> 
             <h1 style={styles.title}>Customer List</h1>
 
-            <table style={styles.table}>
-                <thead>
-                    <tr>
-                        <th style={styles.th}>ID</th>
-                        <th style={styles.th}>First Name</th>
-                        <th style={styles.th}>Last Name</th>
-                        <th style={styles.th}>Email</th>
-                        
 
-                    </tr>
-                </thead>
-                <tbody>
-                    {customers.map(customer => (
-                        <tr key = {customer.customer_id}>
-                            <td style={styles.td}>{customer.customer_id}</td>
-                            <td style={styles.td}>{customer.first_name}</td>
-                            <td style={styles.td}>{customer.last_name}</td>
-                            <td style={styles.td}>{customer.email}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <div style={styles.toggleContainer}>
+                <button
+                    onClick={() => setShowSearch(!showSearch)}
+                    style={styles.button}
+                >
+                    {showSearch ? 'Show All Customers' : 'Search Customers'}
+                </button>
+            </div>
 
-            {pagination && (
-                <div style={styles.pagination}>
-                    <button
-                        onClick={() => setCurrentPage(currentPage-1) }
-                        disabled={!pagination.has_prev}
-                        style={styles.button}
-                    >
-                        Previous 
-                    </button>
+            {showSearch ? (
+                <CustomerSearch />
+            ) : (
+                <>
+                    <table style={styles.table}>
+                        <thead>
+                            <tr>
+                                <th style={styles.th}>ID</th>
+                                <th style={styles.th}>First Name</th>
+                                <th style={styles.th}>Last Name</th>
+                                <th style={styles.th}>Email</th>
+                                <th style={styles.th}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {customers.map(customer => (
+                                <tr key={customer.customer_id}
+                                    onClick={() => setSelectedCustomer(customer.customer_id)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <td style={styles.td}>{customer.customer_id}</td>
+                                    <td style={styles.td}>{customer.first_name}</td>
+                                    <td style={styles.td}>{customer.last_name}</td>
+                                    <td style={styles.td}>{customer.email}</td>
+                                    <td style={styles.td}>
+                                        <button 
+                                            onClick={(e) => handleDelete(customer.customer_id, e)}
+                                            disabled={deletingCustomer === customer.customer_id}
+                                            style={styles.deleteButton}
+                                        >
+                                            {deletingCustomer === customer.customer_id ? 'Deleting...' : 'Delete'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
 
-                     <span style={styles.pageInfo}>
-                        Page {pagination.current_page} of {pagination.total_pages}  
-                        
-                    </span>
-                    
-                    <button
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={!pagination.has_next}
-                        style={styles.button}
-                    >
-                        Next
-                    </button>
-                </div>
+                    {pagination && (
+                        <div style={styles.pagination}>
+                            <button
+                                onClick={() => setCurrentPage(currentPage - 1)}
+                                disabled={!pagination.has_prev}
+                                style={styles.button}
+                            >
+                                Previous 
+                            </button>
+                            <span style={styles.pageInfo}>
+                                Page {pagination.current_page} of {pagination.total_pages}  
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(currentPage + 1)}
+                                disabled={!pagination.has_next}
+                                style={styles.button}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
+
+            {selectedCustomer && (
+                <CustomerDetailsPopup 
+                    customerId={selectedCustomer}
+                    onClose={() => setSelectedCustomer(null)}
+                />
+            )}
+
+            {showAddForm && (
+                <AddFormPopup 
+                    onClose={() => setShowAddForm(false)}
+                    OnSuccess={() => fetchCustomers(currentPage)}
+                />
+            )}
+            <div style={{display: 'flex', justifyContent: 'center', marginTop: '20px'}}>
+                <button style={styles.button} onClick={() => setShowAddForm(true)} >
+                    + Add Customer
+                </button>
+            </div>
         </div>
     );
 }
 
 const styles = {
-
     title: {
         color: "black",
         textAlign: 'center',
         fontSize: '30px',
     },
+    toggleContainer: {
+        display: 'flex',
+        justifyContent: 'center',
+        marginBottom: '20px',
+    },
     table: {
         width: '1000px',  
         borderCollapse: 'collapse',
         marginTop: '20px',
-        marginLeft: '500px',
+        marginLeft: '330px',
         marginBottom: '20px',
     },
     th: {
@@ -128,7 +202,16 @@ const styles = {
     pageInfo: {
         fontSize: '14px',
     },
+    deleteButton: {  
+        padding: '6px 12px',
+        backgroundColor: '#800c04',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        fontWeight: 'bold',
+    },
 };
-
 
 export default CustomerPage;
