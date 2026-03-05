@@ -40,7 +40,7 @@ function CustomerSearch() {
     }
 
     return (
-        <div>
+        <div style={styles.search}>
             <div>
                 <select
                     value={searchType}
@@ -110,8 +110,12 @@ const styles = {
 
     errormsg : {
         color:'red'
+    },
+
+    search : {
+        display: 'flex',
+        justifyContent: 'center'
     }
 };
-
 
 export default CustomerSearch

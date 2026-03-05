@@ -145,10 +145,11 @@ function CustomerPage() {
                     OnSuccess={() => fetchCustomers(currentPage)}
                 />
             )}
-
-            <button onClick={() => setShowAddForm(true)}>
-                + Add Customer
-            </button>
+            <div style={{display: 'flex', justifyContent: 'center', marginTop: '20px'}}>
+                <button style={styles.button} onClick={() => setShowAddForm(true)} >
+                    + Add Customer
+                </button>
+            </div>
         </div>
     );
 }
