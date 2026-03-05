@@ -11,6 +11,12 @@ function CustomerPage() {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [deletingCustomer, setDeletingCustomer] = useState(null);
 
+    const [isSearching, setSearching] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchReslts, setResults] = useState([]);
+    const [searchError, setSearchError] = useState(null);
+    const [searchLoading, setSearchLoading] = useState(false);
+
     useEffect(() => {
         fetchCustomers(currentPage);
     }, [currentPage]);
@@ -49,6 +55,36 @@ function CustomerPage() {
         }
     };
 
+    const handleSearch = async (query) => {
+        setSearchQuery(query);
+        if(!query.trim()) { setResults([]); return; }
+        try {
+            setSearchLoading(true);
+            setSearchError(null);
+            const data = await searchCustomers(query);
+            setResults(data.customers || data);
+        } catch (err) {
+            setSearchError('Failed Search');
+            console.errror(err);
+        } finally {
+            setSearchLoading(false);
+        }
+    };
+
+    const enterSearch = () => {
+        setSearching(true);
+        setSearchQuery('');
+        setResults([]);
+        setSearchError(null);
+    }
+
+    const exitSearch = () => {
+        setSearching(false);
+        setSearchQuery('');
+        setResults([]);
+        setSearchError(null);
+    }
+
 
 
     if (loading) return <h2>Loading Customer Data...</h2>
@@ -57,7 +93,6 @@ function CustomerPage() {
     return (
         <div> 
             <h1 style={styles.title}>Customer List</h1>
-
             <table style={styles.table}>
                 <thead>
                     <tr>
@@ -140,7 +175,7 @@ const styles = {
         width: '1000px',  
         borderCollapse: 'collapse',
         marginTop: '20px',
-        marginLeft: '500px',
+        margin: '20px auto',
         marginBottom: '20px',
     },
     th: {
