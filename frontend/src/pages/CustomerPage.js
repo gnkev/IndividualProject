@@ -1,7 +1,9 @@
 import React, { useState, useEffect} from 'react';
+import axios from 'axios';
 import {getCustomers, deleteCustomer} from '../services/api.js'; 
 import CustomerDetailsPopup from '../components/CustomerDetailsPopup.js';
 import CustomerSearch from '../customerSearch/customersearch.js'; 
+import AddFormPopup from '../components/AddformPopup.js';
 
 function CustomerPage() {
     const [customers, setCustomer] = useState([]);
@@ -12,6 +14,7 @@ function CustomerPage() {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [deletingCustomer, setDeletingCustomer] = useState(null);
     const [showSearch, setShowSearch] = useState(false); 
+    const [showAddForm, setShowAddForm] = useState(false);
 
     useEffect(() => {
         fetchCustomers(currentPage);
@@ -135,6 +138,17 @@ function CustomerPage() {
                     onClose={() => setSelectedCustomer(null)}
                 />
             )}
+
+            {showAddForm && (
+                <AddFormPopup 
+                    onClose={() => setShowAddForm(false)}
+                    OnSuccess={() => fetchCustomers(currentPage)}
+                />
+            )}
+
+            <button onClick={() => setShowAddForm(true)}>
+                + Add Customer
+            </button>
         </div>
     );
 }

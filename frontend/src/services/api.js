@@ -64,4 +64,14 @@ export const deleteCustomer = async (customerId) => {
     return response.data;
 };
 
+export const createCustomer = async (data) => {
+    const response = await api.post('/customers', data);
+    return response.data;
+};
+
+export const updateCustomer = async (customerId, data) => {
+    const response = await api.post(`/customers/${customerId}`, data);
+    return response.data;
+};
+
 export default api;

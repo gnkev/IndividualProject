@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'; 
 import { getCustomerDetails, getCustomerRentals, returnRental } from '../services/api'; 
+import EditFormPopup from '../components/EditformPopup.js';
 
 
 function CustomerDetailsPopup({customerId, onClose }) { 
@@ -8,6 +9,7 @@ function CustomerDetailsPopup({customerId, onClose }) {
     const [loading, setLoading] = useState(true);
     const [returningRental, setReturningRental] = useState(null);
     const [error, setError] = useState(null);
+    const [showEditForm, setShowEditForm] = useState(false);
 
      useEffect(() => {
         const fetchCustomerData = async () => {
@@ -44,6 +46,11 @@ function CustomerDetailsPopup({customerId, onClose }) {
             setReturningRental(null);
         }
     };
+
+    const handleEditSuccess = async () => {
+        const customer = await getCustomerDetails(customerId);
+        setCustomerData(customer);
+    }
     
 
     return (
@@ -59,6 +66,11 @@ function CustomerDetailsPopup({customerId, onClose }) {
                             {customerData.first_name} {customerData.last_name}
                         </h2>
                         <p style={styles.customerId}>Customer ID: {customerData.customer_id}</p>
+
+                        <button
+                            onClick={() => setShowEditForm(true)}>
+                            Edit Customer
+                        </button>
 
                         <div style={styles.infoSection}>
                             <p><strong>Email:</strong> {customerData.email}</p>
@@ -100,6 +112,13 @@ function CustomerDetailsPopup({customerId, onClose }) {
                     </>
                 )}
             </div>
+            {showEditForm && (
+                <EditFormPopup
+                    customerId={customerId}
+                    onClose={() => setShowEditForm(false)}
+                    onSuccess={handleEditSuccess}
+                />
+            )}
         </div>
     );
 }
