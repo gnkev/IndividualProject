@@ -7,6 +7,7 @@ function CustomerDetailsPopup({customerId, onClose }) {
     const [rentals, setRentals ] = useState([]);
     const [loading, setLoading] = useState(true);
     const [returningRental, setReturningRental] = useState(null);
+    const [error, setError] = useState(null);
 
      useEffect(() => {
         const fetchCustomerData = async () => {
@@ -20,6 +21,7 @@ function CustomerDetailsPopup({customerId, onClose }) {
                 setRentals(rentalHistory);
             } catch (error) {
                 console.error(error);
+                setError(error.response?.status + ": " + error.message);
             } finally {
                 setLoading(false);
             }

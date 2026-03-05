@@ -1,6 +1,7 @@
 import React, { useState, useEffect} from 'react';
 import {getCustomers, deleteCustomer} from '../services/api.js'; 
 import CustomerDetailsPopup from '../components/CustomerDetailsPopup.js';
+import CustomerSearch from '../customerSearch/customersearch.js'; 
 
 function CustomerPage() {
     const [customers, setCustomer] = useState([]);
@@ -10,12 +11,7 @@ function CustomerPage() {
     const [pagination, setPagination] = useState(null);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [deletingCustomer, setDeletingCustomer] = useState(null);
-
-    const [isSearching, setSearching] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchReslts, setResults] = useState([]);
-    const [searchError, setSearchError] = useState(null);
-    const [searchLoading, setSearchLoading] = useState(false);
+    const [showSearch, setShowSearch] = useState(false); 
 
     useEffect(() => {
         fetchCustomers(currentPage);
@@ -45,7 +41,6 @@ function CustomerPage() {
         try {
             setDeletingCustomer(customerId);
             await deleteCustomer(customerId);
-            
             fetchCustomers(currentPage);
         } catch (error) {
             console.error(error);
@@ -55,105 +50,85 @@ function CustomerPage() {
         }
     };
 
-    const handleSearch = async (query) => {
-        setSearchQuery(query);
-        if(!query.trim()) { setResults([]); return; }
-        try {
-            setSearchLoading(true);
-            setSearchError(null);
-            const data = await searchCustomers(query);
-            setResults(data.customers || data);
-        } catch (err) {
-            setSearchError('Failed Search');
-            console.errror(err);
-        } finally {
-            setSearchLoading(false);
-        }
-    };
-
-    const enterSearch = () => {
-        setSearching(true);
-        setSearchQuery('');
-        setResults([]);
-        setSearchError(null);
-    }
-
-    const exitSearch = () => {
-        setSearching(false);
-        setSearchQuery('');
-        setResults([]);
-        setSearchError(null);
-    }
-
-
-
     if (loading) return <h2>Loading Customer Data...</h2>
     if (error) return <h2>{error}</h2>; 
 
     return (
         <div> 
             <h1 style={styles.title}>Customer List</h1>
-            <table style={styles.table}>
-                <thead>
-                    <tr>
-                        <th style={styles.th}>ID</th>
-                        <th style={styles.th}>First Name</th>
-                        <th style={styles.th}>Last Name</th>
-                        <th style={styles.th}>Email</th>
-                        <th style={styles.th}>Actions</th>
-                        
 
-                    </tr>
-                </thead>
-                <tbody>
-                    {customers.map(customer => (
-                        <tr key = {customer.customer_id}
-                            onClick={() => setSelectedCustomer(customer.customer_id)}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <td style={styles.td}>{customer.customer_id}</td>
-                            <td style={styles.td}>{customer.first_name}</td>
-                            <td style={styles.td}>{customer.last_name}</td>
-                            <td style={styles.td}>{customer.email}</td>
-                            <td style={styles.td}>
-                                <button 
-                                    onClick={(e) => handleDelete(customer.customer_id, e)}
-                                    disabled={deletingCustomer === customer.customer_id}
-                                    style={styles.deleteButton}
+
+            <div style={styles.toggleContainer}>
+                <button
+                    onClick={() => setShowSearch(!showSearch)}
+                    style={styles.button}
+                >
+                    {showSearch ? 'Show All Customers' : 'Search Customers'}
+                </button>
+            </div>
+
+            {showSearch ? (
+                <CustomerSearch />
+            ) : (
+                <>
+                    <table style={styles.table}>
+                        <thead>
+                            <tr>
+                                <th style={styles.th}>ID</th>
+                                <th style={styles.th}>First Name</th>
+                                <th style={styles.th}>Last Name</th>
+                                <th style={styles.th}>Email</th>
+                                <th style={styles.th}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {customers.map(customer => (
+                                <tr key={customer.customer_id}
+                                    onClick={() => setSelectedCustomer(customer.customer_id)}
+                                    style={{ cursor: 'pointer' }}
                                 >
-                                    {deletingCustomer === customer.customer_id ? 'Deleting...' : 'Delete'}
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                                    <td style={styles.td}>{customer.customer_id}</td>
+                                    <td style={styles.td}>{customer.first_name}</td>
+                                    <td style={styles.td}>{customer.last_name}</td>
+                                    <td style={styles.td}>{customer.email}</td>
+                                    <td style={styles.td}>
+                                        <button 
+                                            onClick={(e) => handleDelete(customer.customer_id, e)}
+                                            disabled={deletingCustomer === customer.customer_id}
+                                            style={styles.deleteButton}
+                                        >
+                                            {deletingCustomer === customer.customer_id ? 'Deleting...' : 'Delete'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
 
-            {pagination && (
-                <div style={styles.pagination}>
-                    <button
-                        onClick={() => setCurrentPage(currentPage-1) }
-                        disabled={!pagination.has_prev}
-                        style={styles.button}
-                    >
-                        Previous 
-                    </button>
-
-                     <span style={styles.pageInfo}>
-                        Page {pagination.current_page} of {pagination.total_pages}  
-                        
-                    </span>
-                    
-                    <button
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={!pagination.has_next}
-                        style={styles.button}
-                    >
-                        Next
-                    </button>
-                    
-                </div>
+                    {pagination && (
+                        <div style={styles.pagination}>
+                            <button
+                                onClick={() => setCurrentPage(currentPage - 1)}
+                                disabled={!pagination.has_prev}
+                                style={styles.button}
+                            >
+                                Previous 
+                            </button>
+                            <span style={styles.pageInfo}>
+                                Page {pagination.current_page} of {pagination.total_pages}  
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(currentPage + 1)}
+                                disabled={!pagination.has_next}
+                                style={styles.button}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
+
             {selectedCustomer && (
                 <CustomerDetailsPopup 
                     customerId={selectedCustomer}
@@ -165,17 +140,21 @@ function CustomerPage() {
 }
 
 const styles = {
-
     title: {
         color: "black",
         textAlign: 'center',
         fontSize: '30px',
     },
+    toggleContainer: {
+        display: 'flex',
+        justifyContent: 'center',
+        marginBottom: '20px',
+    },
     table: {
         width: '1000px',  
         borderCollapse: 'collapse',
         marginTop: '20px',
-        margin: '20px auto',
+        marginLeft: '330px',
         marginBottom: '20px',
     },
     th: {
@@ -219,6 +198,5 @@ const styles = {
         fontWeight: 'bold',
     },
 };
-
 
 export default CustomerPage;

@@ -260,14 +260,18 @@ def get_all_users():
 def search_customers():
     try:
         customer_id = request.args.get("customer_id") or None
-        firstaname = request.args.get("firstname") or None
-        lastname = request.args.get("lastname") or None
+        firstaname = request.args.get("first_name") or None
+        lastname = request.args.get("last_name") or None
         param_count = sum([1 for param in [customer_id, firstaname, lastname] if param is not None])
         conn = getConnection()
         sql_query = """SELECT c.* FROM customer c"""
         with conn.cursor() as cursor:
             if param_count == 1:
                 if customer_id:
+                    try:
+                        _ = int(customer_id)
+                    except ValueError:
+                        return jsonify({"Failed":"Not a number"}), 400
                     cursor.execute(f"""{sql_query} WHERE c.customer_id = {customer_id}""")
                     customers = cursor.fetchone()
                     if not customers:
@@ -280,7 +284,7 @@ def search_customers():
                         return jsonify({"Failed":"No customers found"}), 404
                     return jsonify(customers), 200
                 elif lastname:
-                    cursor.execute(f"""{sql_query} WHERE c.first_name = '{lastname}'""")
+                    cursor.execute(f"""{sql_query} WHERE c.last_name = '{lastname}'""")
                     customers = cursor.fetchall()
                     if not customers:
                         return jsonify({"Failed":"No customers found"}), 404
@@ -468,7 +472,7 @@ def create_customer():
         return jsonify({"Success":f"Customer created{body}"}),201
     except Exception as e:
         print(e)
-        return {'status': 'error', 'message': str(e)}, 500
+        return {'status': 'error', 'message': str(e)}, 400
 
 
 @app.route('/api/customers/<int:customer_id>', methods=['POST'])
@@ -483,7 +487,6 @@ def update_user(customer_id: int):
         if not updates:
             return jsonify({"Failed": "No fields"}), 400
 
-        # Fix: build "key = %s" pairs and pass values separately
         query = ", ".join([f"{key} = %s" for key in updates])
         values = list(updates.values())
 
@@ -498,7 +501,7 @@ def update_user(customer_id: int):
 
             cursor.execute(
                 f"UPDATE customer SET {query}, last_update = NOW() WHERE customer_id = %s",
-                values + [customer_id]  # Pass all values as parameters
+                values + [customer_id]  
             )
             conn.commit()
         conn.close()
